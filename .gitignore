@@ -1,0 +1,74 @@
+#custom section
+src/.deps/
+src/config.h
+src/config.h.in
+src/config.h.in~
+src/stamp-h1
+src/hexviewer
+src/Makefile
+src/Makefile.in
+config.log
+config.status
+Makefile
+Makefile.in
+/.vscode
+
+# autoconf
+/autom4te.cache
+aclocal.m4
+compile
+configure
+depcomp
+install-sh
+missing
+
+# Object files
+*.o
+*.ko
+*.obj
+*.elf
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Libraries
+*.lib
+*.a
+*.la
+*.lo
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+
+# M4 macros
+/m4/*
+
+# I18n stuff
+/ABOUT-NLS
+/po/*.gmo
+/po/*.header
+/po/*.mo
+/po/*.sed
+/po/*.sin
+/po/Makefile.in.in
+/po/Makevars.template
+/po/POTFILES
+/po/Rules-quot
+/po/Makefile
+/po/stamp-po
+
+# compiled resources
+/src/resource.c
+

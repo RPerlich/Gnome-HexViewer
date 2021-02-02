@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/org/gnome/hexviewer">
+    <file preprocess="xml-stripblanks">hexviewer_win.ui</file>
+    <file preprocess="xml-stripblanks">app_sys_menu.ui</file>
+  </gresource>
+</gresources>
