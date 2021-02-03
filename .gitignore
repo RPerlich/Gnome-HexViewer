@@ -15,11 +15,6 @@ Makefile.in
 
 # autoconf
 /autom4te.cache
-compile
-configure
-depcomp
-install-sh
-missing
 
 # Object files
 *.o
