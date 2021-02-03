@@ -16,9 +16,9 @@ HexViewer can open files and show the content in a hexadecimal format.
 Building
 -------------------------------
 HexViewer is using the normal "make" method with AutoTools.
-To build HexViewer run the following commands: 
-  ./configure
-  make
+To build HexViewer run the following commands:
+  * ./configure
+  * make
 
 Contributing
 -------------------------------
