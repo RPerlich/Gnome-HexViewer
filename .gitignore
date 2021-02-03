@@ -1,7 +1,6 @@
 #custom section
 src/.deps/
 src/config.h
-src/config.h.in
 src/config.h.in~
 src/stamp-h1
 src/hexviewer
@@ -10,7 +9,6 @@ src/Makefile.in
 config.log
 config.status
 Makefile
-Makefile.in
 /.vscode
 
 # autoconf
