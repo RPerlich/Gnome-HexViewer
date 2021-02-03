@@ -5,7 +5,6 @@ src/config.h.in~
 src/stamp-h1
 src/hexviewer
 src/Makefile
-src/Makefile.in
 config.log
 config.status
 Makefile
