@@ -5,7 +5,7 @@ AM_INIT_AUTOMAKE
 AC_PROG_CC
 AC_PROG_INSTALL
 PKG_CHECK_MODULES(GTK, gtk+-3.0)
-AC_CONFIG_FILES([Makefile src/Makefile])
+AC_CONFIG_FILES([Makefile src/Makefile icons/Makefile])
 AC_OUTPUT
 
 cat << EOF
