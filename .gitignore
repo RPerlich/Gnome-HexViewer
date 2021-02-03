@@ -51,9 +51,6 @@ missing
 *.x86_64
 *.hex
 
-# M4 macros
-/m4/*
-
 # I18n stuff
 /ABOUT-NLS
 /po/*.gmo
