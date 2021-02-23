@@ -21,6 +21,8 @@
 #include "rphexfile.h"
 #include <string.h>
 #include <math.h>
+#include <stdio.h>
+#include <ctype.h>
 #include "gtk/gtkscrollable.h"
 
 #define DEFAULT_FONT "Monospace 12"
@@ -123,6 +125,10 @@ struct _RPHexViewPrivate
 	gboolean	bDrawCharacters;
 
 	RPHexFile 	*hex_file;
+	gboolean	bIsOvertype;
+	gshort 		num_entered;	// How many consecutive characters entered?
+    gshort		num_del;		// How many consec. chars deleted?
+    gshort		num_bs;			// How many consec. back spaces?
 
 	GSimpleActionGroup 	*action_group_context_menu;
 	GtkWidget			*context_menu;
@@ -396,6 +402,10 @@ static void rp_hex_view_init (RPHexView *hex_view)
 	priv->bDrawCharacters	= TRUE;	
 
 	priv->hex_file			= NULL;
+	priv->bIsOvertype		= TRUE;
+	priv->num_entered		= 0;
+    priv->num_del			= 0;
+    priv->num_bs			= 0;
 
 	priv->action_group_context_menu = g_simple_action_group_new ();
 
@@ -848,23 +858,6 @@ static gboolean rp_hex_view_draw (GtkWidget *widget, cairo_t *cr)
 	// draw cursor data
 	rp_hex_view_draw_cursor (priv, cr);
 
-
-/*
-	PangoAttrList *attrList;
-	attrList = pango_attr_list_new ();
-	PangoAttribute *attrBackground;
-	attrBackground = pango_attr_background_new (50000, 0, 0);
-	pango_attr_list_insert(attrList, attrBackground);
-	pango_layout_set_attributes(priv->pLayout, attrList);
-	pango_attr_list_unref (attrList);
-
-	cairo_set_source_rgb(cr, 0.6, 1.0, 0);
-	cairo_move_to (cr, priv->iAddressWidth * priv->iCharWidth, 0);
-	pango_layout_set_text (priv->pLayout, "0ext 1", 6);
-	pango_cairo_show_layout (cr, priv->pLayout);
-
-	pango_layout_set_attributes(priv->pLayout, NULL);
-*/
 	return TRUE;
 }
 
@@ -922,9 +915,13 @@ static void rp_hex_view_draw_hex_lines (RPHexViewPrivate *priv, cairo_t *cr)
 {
 	guchar 	hByte[3];
 	guchar 	aByte[2] = "\0\0";
-	guint8 	iByte;
 	gint 	row, column;
 	guint32 tmpEndByte = MIN ((priv->iFileSize == 0) ? priv->iFileSize : priv->iFileSize - 1, priv->iEndByte);
+	guint32 bytesToRead = tmpEndByte - priv->iStartByte + 1;
+	guint32 bytesRead = 0;
+	guchar  *buffer = g_try_malloc0 (bytesToRead);
+
+	g_assert (buffer != NULL);
 
 	// paint hex data background
 	cairo_set_source_rgb (cr, priv->cLightGray.red, priv->cLightGray.green, priv->cLightGray.blue);
@@ -938,12 +935,15 @@ static void rp_hex_view_draw_hex_lines (RPHexViewPrivate *priv, cairo_t *cr)
 	// paint hex data
 	cairo_set_source_rgb (cr, 0, 0, 0);
 	
+	bytesRead = rp_hex_file_get_data (priv->hex_file, buffer, bytesToRead, priv->iStartByte);
+
+	g_return_if_fail (bytesRead == bytesToRead);
+
 	for (guint32 i = priv->iStartByte; i <= tmpEndByte; i++)
 	{
 		row		= i / priv->iBytesPerLine - priv->iTopRow;
 		column	= (i - priv->iTopRow * priv->iBytesPerLine) - row * priv->iBytesPerLine;
-		iByte	= rphex_file_read_byte (priv->hex_file, i);
-		g_snprintf (hByte, sizeof(hByte), "%02X", iByte);
+		g_snprintf (hByte, sizeof(hByte), "%02X", buffer[i - priv->iStartByte]);
 		
 		cairo_move_to (cr, priv->rectHexBytes.x + column * priv->iCharWidth * 3 , row * priv->iCharHeight);
 		pango_layout_set_text (priv->pLayout, hByte, 2);
@@ -951,21 +951,28 @@ static void rp_hex_view_draw_hex_lines (RPHexViewPrivate *priv, cairo_t *cr)
 
 		if (priv->bDrawCharacters)
 		{
-			aByte[0] = is_ascii (iByte) ? iByte : '.';
+			aByte[0] = is_ascii (buffer[i - priv->iStartByte]) ? buffer[i - priv->iStartByte] : '.';
 			cairo_move_to (cr, priv->rectCharacters .x + column * priv->iCharWidth , row * priv->iCharHeight);
   			pango_layout_set_text (priv->pLayout, aByte, 1);
     		pango_cairo_show_layout (cr, priv->pLayout);
 		}
 	}
+
+	g_free (buffer);
+    buffer = NULL;
 }
 
 static void rp_hex_view_draw_hex_lines_print (RPHexViewPrivate *priv, cairo_t *cr)
 {
 	guchar 	hByte[3];
 	guchar 	aByte[2] = "\0\0";
-	guint8 	iByte;
 	gint 	row, column;
 	guint32 tmpEndByte = MIN ((priv->iFileSize == 0) ? priv->iFileSize : priv->iFileSize - 1, priv->iPrintEndByte);
+	guint32 bytesToRead = tmpEndByte - priv->iPrintStartByte;
+	guint32 bytesRead = 0;
+	guchar  *buffer = g_try_malloc0 (bytesToRead);
+
+	g_assert (buffer != NULL);
 
 	// paint hex data background
 	cairo_set_source_rgb (cr, priv->cLightGray.red, priv->cLightGray.green, priv->cLightGray.blue);
@@ -979,12 +986,15 @@ static void rp_hex_view_draw_hex_lines_print (RPHexViewPrivate *priv, cairo_t *c
 	// paint hex data
 	cairo_set_source_rgb (cr, 0, 0, 0);
 	
+	bytesRead = rp_hex_file_get_data (priv->hex_file, buffer, bytesToRead, priv->iPrintStartByte);
+
+	g_return_if_fail (bytesRead == bytesToRead);
+
 	for (guint32 i = priv->iPrintStartByte; i <= tmpEndByte; i++)
 	{
 		row		= i / priv->iPrintBytesPerLine - priv->iPrintTopRow;
 		column	= (i - priv->iPrintTopRow * priv->iPrintBytesPerLine) - row * priv->iPrintBytesPerLine;
-		iByte	= rphex_file_read_byte (priv->hex_file, i);
-		g_snprintf (hByte, sizeof(hByte), "%02X", iByte);
+		g_snprintf (hByte, sizeof(hByte), "%02X", buffer[i - priv->iPrintStartByte]);
 		
 		cairo_move_to (cr, priv->rectPrintHexBytes.x + column * priv->iPrintCharWidth * 3 , row * priv->iPrintCharHeight);
 		pango_layout_set_text (priv->pPrintLayout, hByte, 2);
@@ -992,12 +1002,15 @@ static void rp_hex_view_draw_hex_lines_print (RPHexViewPrivate *priv, cairo_t *c
 
 		if (priv->bDrawCharacters)
 		{
-			aByte[0] = is_ascii (iByte) ? iByte : '.';
+			aByte[0] = is_ascii (buffer[i - priv->iPrintStartByte]) ? buffer[i - priv->iPrintStartByte] : '.';
 			cairo_move_to (cr, priv->rectPrintCharacters .x + column * priv->iPrintCharWidth , row * priv->iPrintCharHeight);
   			pango_layout_set_text (priv->pPrintLayout, aByte, 1);
     		pango_cairo_show_layout (cr, priv->pPrintLayout);
 		}
 	}
+
+	g_free (buffer);
+    buffer = NULL;
 }
 
 static void rp_hex_view_draw_selection (RPHexViewPrivate *priv, cairo_t *cr)
@@ -1054,11 +1067,11 @@ static void rp_hex_view_draw_cursor (RPHexViewPrivate *priv, cairo_t *cr)
 {
 	gchar 	hByte[3];
 	guchar 	aByte[2] = "\0\0";
-	guint8 	iByte;
+	guchar 	sByte[1] = "\0";
 	gint 	start_row		= priv->iBytePos / priv->iBytesPerLine - priv->iTopRow;
 	gint 	start_column	= (priv->iBytePos - priv->iTopRow * priv->iBytesPerLine) - start_row * priv->iBytesPerLine;
 
-	iByte = rphex_file_read_byte (priv->hex_file, priv->iBytePos);
+	rp_hex_file_get_data (priv->hex_file, sByte, 1, priv->iBytePos);
 
 	gdk_cairo_set_source_rgba (cr, &priv->cCursor);
 
@@ -1075,7 +1088,7 @@ static void rp_hex_view_draw_cursor (RPHexViewPrivate *priv, cairo_t *cr)
 	
 		cairo_set_source_rgb (cr, 1, 1, 1);
 		
-		g_snprintf (hByte, sizeof(hByte), "%02X", iByte);
+		g_snprintf (hByte, sizeof(hByte), "%02X", sByte[0]);
 		cairo_move_to (cr, priv->rectHexBytes.x + start_column * priv->iCharWidth * 3 , start_row * priv->iCharHeight);
 		pango_layout_set_text (priv->pLayout, hByte, 1);
     	pango_cairo_show_layout (cr, priv->pLayout);
@@ -1094,7 +1107,7 @@ static void rp_hex_view_draw_cursor (RPHexViewPrivate *priv, cairo_t *cr)
 		
 		if (priv->cursorArea == AREA_TEXT)
 		{
-			aByte[0] = is_ascii (iByte) ? iByte : '.';
+			aByte[0] = is_ascii (sByte[0]) ? sByte[0] : '.';
 			cairo_fill (cr);
 			cairo_set_source_rgb (cr, 1, 1, 1);
 			cairo_move_to (cr, priv->rectCharacters .x + start_column * priv->iCharWidth , start_row * priv->iCharHeight);
@@ -1425,6 +1438,101 @@ static gboolean rp_hex_view_key_press_callback(GtkWidget *widget, GdkEventKey *e
 				gtk_widget_queue_draw (widget);
 				ret = TRUE;
 				break;
+			default:
+				priv->num_del = priv->num_bs = 0;
+				guchar cc = '\0';
+
+				if (priv->cursorArea == AREA_HEX && !isxdigit (event->keyval))
+				{
+					g_message("This is not a valid hexadecimal value.");
+					gdk_display_beep (gdk_display_get_default());
+					return TRUE;
+				}
+
+				if (rp_hex_file_is_read_only (priv->hex_file))
+				{
+					g_message("Editing not allowed in Read-Only mode.");
+					gdk_display_beep (gdk_display_get_default());
+					return TRUE;
+				}
+
+				if (priv->bIsOvertype && priv->selection->startSel != priv->selection->endSel)
+				{
+					g_message("Deleting not allowed in Overtype mode.");
+					gdk_display_beep (gdk_display_get_default());
+					return TRUE;
+				}
+
+				if (priv->bIsOvertype && priv->iBytePos == priv->iFileSize)
+				{
+					g_message("Appending not allowed in Overtype mode.");
+					gdk_display_beep (gdk_display_get_default());
+					return TRUE;
+				}
+
+				if (rp_hex_view_has_selection (widget))
+        		{
+            		rp_hex_file_change_data (priv->hex_file,
+											mod_delforw, 
+											priv->selection->startSel,
+											priv->selection->endSel - priv->selection->startSel,
+											NULL, 0);
+        		}
+
+				if (priv->cursorArea == AREA_TEXT)
+				{
+					cc = (guchar)event->keyval;
+					rp_hex_file_change_data (priv->hex_file,
+											priv->bIsOvertype ? mod_replace : mod_insert,
+											priv->iBytePos, 1, 
+											&cc, 
+											priv->num_entered);
+					
+					rp_hex_view_set_cursor (widget, CLAMP ((glong)priv->iBytePos + 1, 0, clampFileSize));
+					priv->num_entered += 2;
+					ret = TRUE;
+				}
+				else
+				{
+					if ((priv->num_entered % 2) == 0)
+					{
+						//  1st nibble entered - convert to low nibble
+						cc = isdigit (event->keyval) ? event->keyval - '0' : toupper (event->keyval) - 'A' + 10;
+						rp_hex_file_change_data (priv->hex_file,
+											priv->bIsOvertype ? mod_replace : mod_insert,
+											priv->iBytePos, 1, 
+											&cc, 
+											priv->num_entered);
+						
+						priv->num_entered++;
+
+						gtk_widget_queue_draw (widget);
+					}
+					else
+					{
+						// 2nd nibble entered - convert to higher nibble
+						cc = '\0';
+
+						if (priv->iBytePos <= clampFileSize)
+						{
+							guint rByte = rp_hex_file_get_data (priv->hex_file, &cc, 1, priv->iBytePos);
+							g_assert (rByte == 1);
+						}
+
+						cc = (cc << 4) + (isdigit (event->keyval) ? event->keyval - '0' : toupper(event->keyval) - 'A' + 10);
+
+						rp_hex_file_change_data (priv->hex_file,
+											priv->bIsOvertype ? mod_replace : mod_insert,
+											priv->iBytePos, 1, 
+											&cc, 
+											priv->num_entered);
+
+						priv->num_entered++;
+						rp_hex_view_set_cursor (widget, CLAMP ((glong)priv->iBytePos + 1, 0, clampFileSize));
+					}
+
+					ret = TRUE;
+				}
 		}
 	}
 
@@ -1533,6 +1641,8 @@ static void rp_hex_view_set_cursor (GtkWidget *widget, guint32 newPos)
 
 	if (oldBytePos != priv->iBytePos)
 	{
+		priv->num_entered = priv->num_del = priv->num_bs = 0;
+
 		g_signal_emit_by_name (G_OBJECT(hex_view), "byte_pos_changed", priv->iBytePos);
 
 		if (priv->bSelecting)
@@ -1824,6 +1934,7 @@ static void rp_hex_view_clipboard_set_data (GtkClipboard *clipboard, GtkSelectio
 	RPHexView 			*hex_view = RP_HEX_VIEW (user_data);
 	guint8 				iByte;
 	gint				iLen;
+	guint32 			bytesRead = 0;
 	gpointer			clipdata;
 
 	g_return_if_fail (RP_IS_HEX_VIEW (hex_view));
@@ -1836,11 +1947,9 @@ static void rp_hex_view_clipboard_set_data (GtkClipboard *clipboard, GtkSelectio
 	if (clipdata == NULL || iLen <= 0 )
 		return;
 
-	for (guint i = 0; i < iLen; i++)
-	{
-		iByte = rphex_file_read_byte (priv->hex_file, i + priv->selection->clipboard_startSel);
-		memset (clipdata + i, iByte, 1);
-	}
+	bytesRead = rp_hex_file_get_data (priv->hex_file, clipdata, iLen, priv->selection->clipboard_startSel);
+
+	g_return_if_fail (bytesRead == iLen);
 
 	gtk_selection_data_set (data, gdk_atom_intern_static_string ("BINARY"), 8, clipdata, iLen);
 
