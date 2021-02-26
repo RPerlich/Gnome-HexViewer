@@ -1,4 +1,4 @@
-![image](https://github.com/RPerlich/Gnome-HexViewer/blob/master/screenshot/1.PNG)
+![image](https://github.com/RPerlich/Gnome-HexViewer/screenshot/1.PNG)
 
 What is it?
 -------------------------------
