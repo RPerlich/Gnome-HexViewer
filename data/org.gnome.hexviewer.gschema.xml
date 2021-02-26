@@ -1,0 +1,22 @@
+<schemalist>
+  <schema id="org.gnome.hexviewer" path="/org/gnome/hexviewer/">
+    <key name="font" type="s">
+      <default>'Monospace 12'</default>
+    </key>
+    <key name="print-font" type="s">
+      <default>'Monospace 12'</default>
+    </key>
+    <key name="show-addresses" type="b">
+      <default>true</default>
+    </key>
+    <key name="show-ascii" type="b">
+      <default>true</default>
+    </key>
+    <key name="auto-fit" type="b">
+      <default>true</default>
+    </key>
+    <key name="show-statusbar" type="b">
+      <default>true</default>    
+    </key>
+  </schema>
+</schemalist>

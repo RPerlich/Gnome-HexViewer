@@ -216,6 +216,8 @@ ECHO_C = @ECHO_C@
 ECHO_N = @ECHO_N@
 ECHO_T = @ECHO_T@
 EXEEXT = @EXEEXT@
+GLIB_COMPILE_SCHEMAS = @GLIB_COMPILE_SCHEMAS@
+GSETTINGS_DISABLE_SCHEMAS_COMPILE = @GSETTINGS_DISABLE_SCHEMAS_COMPILE@
 GTK_CFLAGS = @GTK_CFLAGS@
 GTK_LIBS = @GTK_LIBS@
 INSTALL = @INSTALL@
@@ -263,6 +265,7 @@ datarootdir = @datarootdir@
 docdir = @docdir@
 dvidir = @dvidir@
 exec_prefix = @exec_prefix@
+gsettingsschemadir = @gsettingsschemadir@
 host_alias = @host_alias@
 htmldir = @htmldir@
 includedir = @includedir@
@@ -288,7 +291,7 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-SUBDIRS = icons src
+SUBDIRS = icons data src
 all: all-recursive
 
 .SUFFIXES:

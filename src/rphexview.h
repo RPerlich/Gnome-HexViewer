@@ -67,8 +67,13 @@ GType		rp_hex_view_get_type		(void) G_GNUC_CONST;
 GtkWidget	*rp_hex_view_new			(void);
 GtkWidget	*rp_hex_view_new_with_file	(RPHexFile *hex_file);
 
-gboolean	rp_hex_view_has_selection	(GtkWidget *widget);
-gboolean 	rp_hex_view_print 			(GtkWidget *widget, GtkWindow *parent, const gchar *print_job_name);
+gboolean	rp_hex_view_has_selection			(GtkWidget *widget);
+gboolean 	rp_hex_view_print 					(GtkWidget *widget, GtkWindow *parent, const gchar *print_job_name);
+void 		rp_hex_view_toggle_draw_addresses	(GtkWidget *widget, gboolean bEnable);
+void		rp_hex_view_toggle_draw_characters	(GtkWidget *widget, gboolean bEnable);
+void		rp_hex_view_toggle_auto_fit 		(GtkWidget *widget, gboolean bEnable);
+void		rp_hex_view_toggle_font 			(GtkWidget *widget, guchar *font);
+void		rp_hex_view_toggle_print_font		(GtkWidget *widget, guchar *font);
 
 G_END_DECLS
 

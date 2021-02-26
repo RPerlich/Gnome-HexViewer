@@ -60,3 +60,6 @@ Makefile
 # compiled resources
 /src/resource.c
 
+data/gschemas.compiled
+compile_commands.json
+data/org.gnome.hexviewer.gschema.valid

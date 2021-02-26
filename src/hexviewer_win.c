@@ -20,6 +20,7 @@
 #include "hexviewer_win.h"
 #include "rphexview.h"
 #include "rphexfile.h"
+#include "hexviewer_prefs.h"
 
 typedef struct _HexViewerWindow HexViewerWindow;
 
@@ -27,11 +28,13 @@ struct _HexViewerWindow
 {
 	GtkApplicationWindow	parent;  
 	GtkHeaderBar			*headerBar;
+	GtkStatusbar			*statusbar;
 	GtkScrolledWindow		*scrolledWindow;
 	GtkButton				*btn_open;
 	GtkButton				*btn_save;
 	GtkWidget				*hex_view;
 	RPHexFile				*hex_file;
+	GSettings				*settings;
 };
 
 G_DEFINE_TYPE (HexViewerWindow, hexviewer_window, GTK_TYPE_APPLICATION_WINDOW)
@@ -39,6 +42,7 @@ G_DEFINE_TYPE (HexViewerWindow, hexviewer_window, GTK_TYPE_APPLICATION_WINDOW)
 static GList *window_list = NULL;
 
 static void hexviewer_window_dispose 	(GObject *object);
+static void hexviewer_window_update_file_data (HexViewerWindow *window, gboolean bChanged);
 static void callback_byte_pos_changed	(RPHexView *widget, guint64 position, HexViewerWindow *window);
 static void callback_selection_changed	(RPHexView *widget, HexViewerWindow *window);
 static void callback_data_changed		(RPHexFile *hex_file, gboolean changed, HexViewerWindow *window);
@@ -46,6 +50,7 @@ static void action_open_file 			(GSimpleAction *action, GVariant *parameter, gpo
 static void action_save_file 			(GSimpleAction *action, GVariant *parameter, gpointer window);
 static void action_print_print			(GSimpleAction *action, GVariant *parameter, gpointer window);
 static void action_preferences 			(GSimpleAction *action, GVariant *parameter, gpointer window);
+static void action_prefs				(GSettings *settings, gchar *key, gpointer user_data);
 
 static GActionEntry win_action_entries[] = {
 	{ "open_file", action_open_file, NULL, NULL, NULL },
@@ -62,6 +67,7 @@ static void hexviewer_window_class_init (HexViewerWindowClass *klass)
 
 	gtk_widget_class_set_template_from_resource (class, "/org/gnome/hexviewer/hexviewer_win.ui");
 	gtk_widget_class_bind_template_child (class, HexViewerWindow, headerBar);
+	gtk_widget_class_bind_template_child (class, HexViewerWindow, statusbar);
 	gtk_widget_class_bind_template_child (class, HexViewerWindow, scrolledWindow);
 	gtk_widget_class_bind_template_child (class, HexViewerWindow, btn_open);
 	gtk_widget_class_bind_template_child (class, HexViewerWindow, btn_save);
@@ -76,13 +82,19 @@ static void hexviewer_window_init (HexViewerWindow *window)
 	g_action_map_add_action_entries (G_ACTION_MAP (window), win_action_entries, G_N_ELEMENTS (win_action_entries), window);
 	
 	GAction *action_save_file = g_action_map_lookup_action (G_ACTION_MAP (window), win_action_entries[1].name);
-	g_simple_action_set_enabled (G_SIMPLE_ACTION(action_save_file), FALSE); 
+	g_simple_action_set_enabled (G_SIMPLE_ACTION (action_save_file), FALSE); 
 
 	GAction *action_print_print = g_action_map_lookup_action (G_ACTION_MAP (window), win_action_entries[2].name);
-	g_simple_action_set_enabled (G_SIMPLE_ACTION(action_print_print), FALSE); 
+	g_simple_action_set_enabled (G_SIMPLE_ACTION (action_print_print), FALSE);
 
 	window->hex_view = NULL;
 	window->hex_file = NULL;
+
+	window->settings = g_settings_new ("org.gnome.hexviewer");
+
+	g_settings_bind (window->settings, "show-statusbar", window->statusbar, "visible", G_SETTINGS_BIND_DEFAULT);
+
+	g_signal_connect (G_OBJECT (window->settings), "changed", G_CALLBACK (action_prefs), window);
 
 	window_list = g_list_prepend (window_list, window);
 }
@@ -99,6 +111,8 @@ static void hexviewer_window_dispose (GObject *object)
 		g_object_unref (window->hex_file);
 		window->hex_file = NULL;
 	}
+
+	g_clear_object (&window->settings);
 }
 
 HexViewerWindow *hexviewer_window_new (HexViewerApp *app)
@@ -108,9 +122,9 @@ HexViewerWindow *hexviewer_window_new (HexViewerApp *app)
 
 gboolean hexviewer_window_open (HexViewerWindow *window, GFile *file)
 {
-	gchar	*fileName;
-	gchar	window_title[256];
-	GError 	file_error;
+	GError 		file_error;
+	gboolean	bEnable = FALSE;
+	guchar 		*font = NULL;
 	
 	g_return_val_if_fail (HEXVIEWER_WINDOW_IS_WINDOW (window), FALSE);
 
@@ -118,7 +132,8 @@ gboolean hexviewer_window_open (HexViewerWindow *window, GFile *file)
 	g_return_val_if_fail (window->hex_file != NULL, FALSE);
 	
 	window->hex_view = rp_hex_view_new_with_file (window->hex_file);
-	
+	g_return_val_if_fail (window->hex_view != NULL, FALSE);
+
 	gtk_container_add (GTK_CONTAINER(window->scrolledWindow), window->hex_view);
 	gtk_widget_show (window->hex_view);
 	
@@ -131,16 +146,32 @@ gboolean hexviewer_window_open (HexViewerWindow *window, GFile *file)
 	g_signal_connect (G_OBJECT(window->hex_file), "data_changed",
                      G_CALLBACK(callback_data_changed), window);
 
-	fileName = g_file_get_basename (file);
-	
-	g_snprintf (window_title, sizeof(window_title), "%s - HexViewer", fileName);
-	gtk_window_set_title (GTK_WINDOW(window), window_title);
-	
-	g_free (fileName);
+	hexviewer_window_update_file_data (window, FALSE);
 
 	GAction *action_print = g_action_map_lookup_action (G_ACTION_MAP (window), 
-														win_action_entries[1].name);
+														win_action_entries[2].name);
 	g_simple_action_set_enabled (G_SIMPLE_ACTION(action_print), TRUE);
+
+	bEnable = g_settings_get_boolean (window->settings, "show-addresses");
+	rp_hex_view_toggle_draw_addresses (window->hex_view, bEnable);
+
+	bEnable = g_settings_get_boolean (window->settings, "show-ascii");
+	rp_hex_view_toggle_draw_characters (window->hex_view, bEnable);
+
+	bEnable = g_settings_get_boolean (window->settings, "auto-fit");
+	rp_hex_view_toggle_auto_fit (window->hex_view, bEnable);
+
+	font = g_settings_get_string (window->settings, "font");
+	
+	if (font)
+		rp_hex_view_toggle_font (window->hex_view, font); 
+	g_free (font);
+
+	font = g_settings_get_string (window->settings, "print-font");
+	
+	if (font)
+		rp_hex_view_toggle_print_font (window->hex_view, font);
+	g_free (font);
 
 	return TRUE;
 }
@@ -150,7 +181,7 @@ const GList *hexviewer_window_get_list ()
     return window_list;
 }
 
-static void hexviewer_update_window_file_data (HexViewerWindow *window, gboolean bChanged)
+static void hexviewer_window_update_file_data (HexViewerWindow *window, gboolean bChanged)
 {
 	gchar window_title[256];
 	GFile *file = NULL;
@@ -167,7 +198,7 @@ static void hexviewer_update_window_file_data (HexViewerWindow *window, gboolean
 	g_free (fileName);
 
 	GAction *action_save_file = g_action_map_lookup_action (G_ACTION_MAP (window), win_action_entries[1].name);
-	g_simple_action_set_enabled (G_SIMPLE_ACTION(action_save_file), bChanged); 
+	g_simple_action_set_enabled (G_SIMPLE_ACTION (action_save_file), bChanged); 
 }
 
 static void callback_byte_pos_changed (RPHexView *widget, guint64 position, HexViewerWindow *window)
@@ -191,7 +222,7 @@ static void callback_data_changed (RPHexFile *hex_file, gboolean bChanged, HexVi
 	g_return_if_fail (RP_IS_HEX_FILE (hex_file));
 	g_return_if_fail (HEXVIEWER_WINDOW_IS_WINDOW (window));
 
-	hexviewer_update_window_file_data (window, bChanged);
+	hexviewer_window_update_file_data (window, bChanged);
 }
 
 static void action_open_file (GSimpleAction *action, GVariant *parameter, gpointer data)
@@ -268,7 +299,7 @@ static void action_save_file (GSimpleAction *action, GVariant *parameter, gpoint
 		return;
 	}
 	
-	hexviewer_update_window_file_data (window, FALSE);
+	hexviewer_window_update_file_data (window, FALSE);
 }
 
 static void action_print_print (GSimpleAction *action, GVariant *parameter, gpointer data)
@@ -301,17 +332,65 @@ static void action_print_print (GSimpleAction *action, GVariant *parameter, gpoi
 
 static void action_preferences (GSimpleAction *action, GVariant *parameter, gpointer data)
 {
-	g_message ("Win: Action Pereferences called.");
-	HexViewerWindow	*window;
-	GtkWidget		*dialog;
+	HexViewerPreferences	*prefs;
+	HexViewerWindow			*window;
 
 	g_assert (data != NULL);
 
-	window = HEXVIEWER_WINDOW (data);
-
-	dialog = gtk_message_dialog_new (GTK_WINDOW(window), GTK_DIALOG_MODAL, GTK_MESSAGE_INFO, GTK_BUTTONS_OK, "Not implemented yet.");
-	gtk_dialog_run (GTK_DIALOG (dialog));
-	gtk_widget_destroy (dialog);
+	window	= HEXVIEWER_WINDOW (data);
+	prefs	= hexviewer_preferences_new (HEXVIEWER_WINDOW (window));
+	gtk_window_present (GTK_WINDOW (prefs));
 }
 
-//GtkApplication *app = gtk_window_get_application (GTK_WINDOW(window));
+static void action_prefs (GSettings *settings, gchar *key, gpointer user_data)
+{
+	HexViewerWindow	*window;
+	gboolean 		bEnable = FALSE;
+	guchar 			*font = NULL;
+
+	g_assert (user_data != NULL);
+
+	window = HEXVIEWER_WINDOW (user_data);
+
+	if (!window->hex_view)
+		return;
+
+	if (strcmp (key, "show-addresses") == 0)
+	{
+		bEnable = g_settings_get_boolean (settings, key);
+		g_message ("Win: Action Prefs called. %s with %s", key, bEnable ? "True" : "False");
+		rp_hex_view_toggle_draw_addresses (window->hex_view, bEnable);
+	}
+	else
+	if (strcmp (key, "show-ascii") == 0)
+	{
+		bEnable = g_settings_get_boolean (settings, key);
+		g_message ("Win: Action Prefs called. %s with %s", key, bEnable ? "True" : "False");
+		rp_hex_view_toggle_draw_characters (window->hex_view, bEnable);
+	}
+	else
+	if (strcmp (key, "auto-fit") == 0)
+	{
+		bEnable = g_settings_get_boolean (settings, key);
+		g_message ("Win: Action Prefs called. %s with %s", key, bEnable ? "True" : "False");
+		rp_hex_view_toggle_auto_fit (window->hex_view, bEnable);
+	}
+	else
+	if (strcmp (key, "font") == 0)
+	{
+		font = g_settings_get_string (settings, key);
+		g_message ("Win: Action Prefs called. %s with %s", key, font);
+		if (font)
+			rp_hex_view_toggle_font (window->hex_view, font);
+		g_free (font);
+	}
+	else
+	if (strcmp (key, "print-font") == 0)
+	{
+		font = g_settings_get_string (settings, key);
+		g_message ("Win: Action Prefs called. %s with %s", key, font);
+		if (font)
+			rp_hex_view_toggle_print_font (window->hex_view, font);
+		g_free (font);
+	}
+}

@@ -10,7 +10,9 @@ hexviewer_SOURCES = \
 	hexviewer_win.c \
 	hexviewer_win.h \
 	hexviewer_app.c \
-	hexviewer_app.h
+	hexviewer_app.h \
+	hexviewer_prefs.c \
+	hexviewer_prefs.h
 hexviewer_LDFLAGS= $(GTK_LIBS)
 
 resources.c: hexviewer_app.gresource.xml \
@@ -20,4 +22,5 @@ resources.c: hexviewer_app.gresource.xml \
 EXTRA_DIST = \
 	app_sys_menu.ui \
 	hexviewer_win.ui \
+	hexviewer_prefs.ui \
 	hexviewer_app.gresource.xml

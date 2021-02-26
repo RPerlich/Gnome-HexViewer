@@ -76,13 +76,14 @@ static const gint n_clip_targets = sizeof(clip_targets) / sizeof(clip_targets[0]
 
 struct _RPHexViewPrivate
 {
-	GtkBorder             border_window_size;
-	GdkWindow             *hex_window;
-	GtkAdjustment         *hadjustment;
-	GtkAdjustment         *vadjustment;
-	PangoFontMetrics      *pFontMetrics, *pPrintFontMetrics;
-	PangoFontDescription  *pFontDescription;
-	PangoLayout           *pLayout, *pPrintLayout;
+	GtkBorder				border_window_size;
+	GdkWindow				*hex_window;
+	GtkAdjustment			*hadjustment;
+	GtkAdjustment			*vadjustment;
+	PangoFontMetrics		*pFontMetrics, *pPrintFontMetrics;
+	PangoFontDescription	*pFontDescription, *pPrintFontDescription;
+	PangoLayout				*pLayout, *pPrintLayout;
+	guchar					*pPrintFontName;
 
 	GdkRGBA cLightGray;
 	GdkRGBA cDimGray;
@@ -322,7 +323,6 @@ static void rp_hex_view_class_init (RPHexViewClass *klass)
 	gtk_binding_entry_add_signal (binding_set, GDK_KEY_v, GDK_CONTROL_MASK, "edit_paste", 0);
 	gtk_binding_entry_add_signal (binding_set, GDK_KEY_a, GDK_CONTROL_MASK, "edit_select_all", 0);
 	
-
 	/* GtkScrollable interface */
 	g_object_class_override_property (gobject_class, PROP_HADJUSTMENT,    "hadjustment");
 	g_object_class_override_property (gobject_class, PROP_VADJUSTMENT,    "vadjustment");
@@ -339,13 +339,15 @@ static void rp_hex_view_init (RPHexView *hex_view)
 	hex_view->priv = rp_hex_view_get_instance_private (hex_view);
 	priv = hex_view->priv;
 
-	priv->pFontMetrics		= rp_hex_view_get_fontmetrics (DEFAULT_FONT);
-	priv->pFontDescription	= pango_font_description_from_string (DEFAULT_FONT);
-	priv->pLayout			= gtk_widget_create_pango_layout (widget, "hex_Layout");
-	priv->pPrintLayout 		= NULL;
-	priv->pPrintFontMetrics = NULL;
-	priv->iPrintCharHeight	= 0;
-	priv->iPrintCharWidth	= 0;
+	priv->pFontMetrics			= rp_hex_view_get_fontmetrics (DEFAULT_FONT);
+	priv->pFontDescription		= pango_font_description_from_string (DEFAULT_FONT);
+	priv->pPrintFontName		= g_strdup (DEFAULT_FONT);
+	priv->pPrintFontDescription	= pango_font_description_from_string (DEFAULT_FONT);
+	priv->pLayout				= gtk_widget_create_pango_layout (widget, "hex_Layout");
+	priv->pPrintLayout 			= NULL;
+	priv->pPrintFontMetrics 	= NULL;
+	priv->iPrintCharHeight		= 0;
+	priv->iPrintCharWidth		= 0;
 
 	gtk_widget_set_can_focus (widget, TRUE);
 	gtk_widget_set_focus_on_click (widget, TRUE);
@@ -526,6 +528,12 @@ static void rp_hex_view_finalize (GObject *object)
 
   	if (priv->pFontDescription)
 		pango_font_description_free (priv->pFontDescription);
+
+	if (priv->pPrintFontDescription)
+		pango_font_description_free (priv->pPrintFontDescription);
+
+	if (priv->pPrintFontName)
+		g_free (priv->pPrintFontName);
 
   	if (priv->pLayout)
 		g_object_unref (G_OBJECT (priv->pLayout));
@@ -806,7 +814,7 @@ static void rp_hex_view_update_layout_print (RPHexViewPrivate *priv, GtkPrintCon
 	priv->iPrintLastRow 	= MIN (priv->iPrintVisibleRows, priv->iPrintRows - priv->iPrintTopRow);
 }
 
-static void rp_hex_view_update_byte_visibility(RPHexViewPrivate *priv)
+static void rp_hex_view_update_byte_visibility (RPHexViewPrivate *priv)
 {
 	if (priv->iFileSize == 0)
     	return;
@@ -819,7 +827,7 @@ static void rp_hex_view_update_byte_visibility(RPHexViewPrivate *priv)
 									priv->iMaxVisibleBytes - 1);
 }
 
-static void rp_hex_view_update_byte_visibility_print(RPHexViewPrivate *priv)
+static void rp_hex_view_update_byte_visibility_print (RPHexViewPrivate *priv)
 {
 	if (priv->iFileSize == 0)
     	return;
@@ -2090,8 +2098,8 @@ void rp_hex_view_print_begin_print (GtkPrintOperation *operation, GtkPrintContex
 	{
 		PangoContext *pcontext = gtk_print_context_create_pango_context (context);
 		priv->pPrintLayout = gtk_print_context_create_pango_layout (context);
-		pango_layout_set_font_description (priv->pPrintLayout, priv->pFontDescription);
-		priv->pPrintFontMetrics = rp_hex_view_get_fontmetrics_print (pcontext, DEFAULT_FONT);
+		pango_layout_set_font_description (priv->pPrintLayout, priv->pPrintFontDescription);
+		priv->pPrintFontMetrics = rp_hex_view_get_fontmetrics_print (pcontext, priv->pPrintFontName);
 		
 		rp_hex_view_update_character_size_print (priv);
 		
@@ -2150,7 +2158,7 @@ gboolean rp_hex_view_print (GtkWidget *widget, GtkWindow *parent, const gchar *p
 
 	pOperation	= gtk_print_operation_new ();
 	pSettings	= gtk_print_settings_new ();
-	paper_size = gtk_paper_size_new (gtk_paper_size_get_default());
+	paper_size	= gtk_paper_size_new (gtk_paper_size_get_default());
 	
 	gtk_print_operation_set_job_name (pOperation, print_job_name);
 	gtk_print_operation_set_show_progress (pOperation, TRUE);
@@ -2181,4 +2189,115 @@ gboolean rp_hex_view_print (GtkWidget *widget, GtkWindow *parent, const gchar *p
 		g_object_unref (pOperation);
 
 	return ret_val;
+}
+
+void rp_hex_view_toggle_draw_addresses (GtkWidget *widget, gboolean bEnable)
+{
+	RPHexView			*hex_view;
+	RPHexViewPrivate	*priv;
+
+	hex_view = RP_HEX_VIEW (widget);
+	priv = hex_view->priv;
+
+	g_return_if_fail (RP_IS_HEX_VIEW (hex_view));
+
+	priv->bDrawAddresses = bEnable;
+	gtk_widget_queue_resize (GTK_WIDGET (hex_view));
+	gtk_widget_queue_draw (GTK_WIDGET (hex_view));
+}
+
+void rp_hex_view_toggle_draw_characters (GtkWidget *widget, gboolean bEnable)
+{
+	RPHexView			*hex_view;
+	RPHexViewPrivate	*priv;
+
+	hex_view = RP_HEX_VIEW (widget);
+	priv = hex_view->priv;
+
+	g_return_if_fail (RP_IS_HEX_VIEW (hex_view));
+
+	priv->bDrawCharacters = bEnable;
+	gtk_widget_queue_resize (GTK_WIDGET (hex_view));
+	gtk_widget_queue_draw (GTK_WIDGET (hex_view));
+}
+
+void rp_hex_view_toggle_auto_fit (GtkWidget *widget, gboolean bEnable)
+{
+	RPHexView			*hex_view;
+	RPHexViewPrivate	*priv;
+
+	hex_view = RP_HEX_VIEW (widget);
+	priv = hex_view->priv;
+
+	g_return_if_fail (RP_IS_HEX_VIEW (hex_view));
+
+	priv->bAutoBytesPerRow = bEnable;
+	gtk_widget_queue_resize (GTK_WIDGET (hex_view));
+	gtk_widget_queue_draw (GTK_WIDGET (hex_view));
+}
+
+gboolean isMonospaceFont (guchar *font)
+{
+	// really a stupid idea, but I have no other solution yet
+	return (g_strrstr (font, "Mono") != NULL);
+}
+
+void rp_hex_view_toggle_font (GtkWidget *widget, guchar *font)
+{
+	RPHexView			*hex_view;
+	RPHexViewPrivate	*priv;
+
+	hex_view = RP_HEX_VIEW (widget);
+	priv = hex_view->priv;
+
+	g_return_if_fail (RP_IS_HEX_VIEW (hex_view));
+
+	if (priv->pFontMetrics)
+		pango_font_metrics_unref (priv->pFontMetrics);
+
+  	if (priv->pFontDescription)
+		pango_font_description_free (priv->pFontDescription);
+
+	if (isMonospaceFont (font))
+	{
+		priv->pFontMetrics		= rp_hex_view_get_fontmetrics (font);
+		priv->pFontDescription	= pango_font_description_from_string (font);
+	}
+	else
+	{
+		priv->pFontMetrics		= rp_hex_view_get_fontmetrics (DEFAULT_FONT);
+		priv->pFontDescription	= pango_font_description_from_string (DEFAULT_FONT);
+	}
+
+	pango_layout_set_font_description (priv->pLayout, priv->pFontDescription);
+	
+	rp_hex_view_update_character_size(priv);
+
+	gtk_widget_queue_resize (GTK_WIDGET (hex_view));
+	gtk_widget_queue_draw (GTK_WIDGET (hex_view));
+}
+
+void rp_hex_view_toggle_print_font (GtkWidget *widget, guchar *font)
+{
+	RPHexView			*hex_view;
+	RPHexViewPrivate	*priv;
+
+	hex_view = RP_HEX_VIEW (widget);
+	priv = hex_view->priv;
+
+	g_return_if_fail (RP_IS_HEX_VIEW (hex_view));
+
+  	if (priv->pPrintFontDescription)
+		pango_font_description_free (priv->pPrintFontDescription);
+
+	if (isMonospaceFont (font))
+	{
+		priv->pPrintFontDescription	= pango_font_description_from_string (font);
+		priv->pPrintFontName = g_strdup (font);
+	}
+	else
+	{
+		priv->pPrintFontDescription	= pango_font_description_from_string (DEFAULT_FONT);
+		priv->pPrintFontName = DEFAULT_FONT;
+	}
 }
