@@ -8,5 +8,8 @@ gschemas.compiled: org.gnome.hexviewer.gschema.xml
 
 EXTRA_DIST = $(gsettings_SCHEMAS)
 
+desktopdir = $(datadir)/applications
+dist_desktop_DATA = hexviewer.desktop
+
 CLEANFILES = 					\
 	gschemas.compiled

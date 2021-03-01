@@ -39,6 +39,19 @@ struct _HexViewerPreferencesPrivate
 
 G_DEFINE_TYPE_WITH_PRIVATE (HexViewerPreferences, hexviewer_preferences, GTK_TYPE_DIALOG)
 
+gboolean filterfunc (PangoFontFamily *family, const PangoFontFace *face, gpointer data)
+{
+const gchar *name = pango_font_family_get_name (family);
+
+	return pango_font_family_is_monospace (family) ||
+			(g_strrstr (name, "Mono") != NULL);
+}
+
+void destroyfunc (gpointer data)
+{
+	// nothing to free
+}
+
 static void hexviewer_preferences_init (HexViewerPreferences *prefs)
 {
 	HexViewerPreferencesPrivate *priv;
@@ -54,6 +67,14 @@ static void hexviewer_preferences_init (HexViewerPreferences *prefs)
 	g_settings_bind (priv->settings, "show-statusbar", priv->chk_show_statusbar, "active", G_SETTINGS_BIND_DEFAULT);
 	g_settings_bind (priv->settings, "font", priv->font, "font", G_SETTINGS_BIND_DEFAULT);
 	g_settings_bind (priv->settings, "print-font", priv->print_font, "font", G_SETTINGS_BIND_DEFAULT);
+
+	gtk_font_chooser_set_filter_func (GTK_FONT_CHOOSER(priv->font), 
+									(GtkFontFilterFunc)filterfunc, 
+									NULL, (GDestroyNotify) destroyfunc);
+
+	gtk_font_chooser_set_filter_func (GTK_FONT_CHOOSER(priv->print_font), 
+									(GtkFontFilterFunc)filterfunc, 
+									NULL, (GDestroyNotify) destroyfunc);
 }
 
 static void hexviewer_preferences_dispose (GObject *object)

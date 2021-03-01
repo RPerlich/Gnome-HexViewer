@@ -2238,8 +2238,7 @@ void rp_hex_view_toggle_auto_fit (GtkWidget *widget, gboolean bEnable)
 
 gboolean isMonospaceFont (guchar *font)
 {
-	// really a stupid idea, but I have no other solution yet
-	return (g_strrstr (font, "Mono") != NULL);
+	return TRUE;
 }
 
 void rp_hex_view_toggle_font (GtkWidget *widget, guchar *font)
