@@ -21,7 +21,7 @@ Building / Running
 -------------------------------
 HexViewer is using the normal "make" method with AutoTools.
 To build HexViewer run the following commands:
-  * ./configure
+  * ./configure --prefix=/usr
   * make
 
 There can be an issue when running this application out of the build directory

@@ -1,4 +1,4 @@
-iconsdir = $(datadir)/icons/hicolor
+iconsdir = $(datadir)/icons
 
 nobase_dist_icons_DATA = \
 	hicolor/16x16/apps/hexviewer.png \
