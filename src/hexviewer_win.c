@@ -203,7 +203,7 @@ static void hexviewer_window_update_file_data (HexViewerWindow *window, gboolean
 
 static void callback_byte_pos_changed (RPHexView *widget, guint64 position, HexViewerWindow *window)
 {
-	g_message ("Win: Byte position changed received. %i", position);
+	g_message ("Win: Byte position changed received. %li", position);
 	g_return_if_fail (RP_IS_HEX_VIEW (widget));
 	g_return_if_fail (HEXVIEWER_WINDOW_IS_WINDOW (window));
 }

@@ -294,7 +294,7 @@ void loc_split (RPHexFile *hex_file, guint32 address, guint32 pos, GList *locLis
     else
     {
 		hex_file->loc = g_list_insert (hex_file->loc, doc_loc_mem_new (dl->memaddr + dl->len - split, split), lPos);
-        g_message ("Split: Add mem rec: addr: %i, len: %i, pos: %i", dl->memaddr + dl->len - split, split, lPos);
+        g_message ("Split: Add mem rec: addr: %hhn, len: %i, pos: %i", dl->memaddr + dl->len - split, split, lPos);
     }
 
     dl->len -= split;

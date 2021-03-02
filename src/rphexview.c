@@ -2174,7 +2174,7 @@ gboolean rp_hex_view_print (GtkWidget *widget, GtkWindow *parent, const gchar *p
 
 	if (result == GTK_PRINT_OPERATION_RESULT_ERROR)
 	{
-		g_message (error->message);
+		g_message ("Widget: %s", error->message);
 		g_error_free (error);
 		ret_val = FALSE;
 	}
