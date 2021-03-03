@@ -103,9 +103,7 @@ am_hexviewer_OBJECTS = resources.$(OBJEXT) rphexview.$(OBJEXT) \
 	rphexfile.$(OBJEXT) hexviewer_win.$(OBJEXT) \
 	hexviewer_app.$(OBJEXT) hexviewer_prefs.$(OBJEXT)
 hexviewer_OBJECTS = $(am_hexviewer_OBJECTS)
-hexviewer_LDADD = $(LDADD)
-hexviewer_LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(hexviewer_LDFLAGS) \
-	$(LDFLAGS) -o $@
+hexviewer_DEPENDENCIES =
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -276,7 +274,7 @@ hexviewer_SOURCES = \
 	hexviewer_prefs.c \
 	hexviewer_prefs.h
 
-hexviewer_LDFLAGS = $(GTK_LIBS)
+hexviewer_LDADD = @GTK_LIBS@
 EXTRA_DIST = \
 	app_sys_menu.ui \
 	hexviewer_win.ui \
@@ -377,7 +375,7 @@ clean-binPROGRAMS:
 
 hexviewer$(EXEEXT): $(hexviewer_OBJECTS) $(hexviewer_DEPENDENCIES) $(EXTRA_hexviewer_DEPENDENCIES) 
 	@rm -f hexviewer$(EXEEXT)
-	$(AM_V_CCLD)$(hexviewer_LINK) $(hexviewer_OBJECTS) $(hexviewer_LDADD) $(LIBS)
+	$(AM_V_CCLD)$(LINK) $(hexviewer_OBJECTS) $(hexviewer_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)

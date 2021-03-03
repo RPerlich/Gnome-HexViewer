@@ -13,7 +13,7 @@ hexviewer_SOURCES = \
 	hexviewer_app.h \
 	hexviewer_prefs.c \
 	hexviewer_prefs.h
-hexviewer_LDFLAGS= $(GTK_LIBS)
+hexviewer_LDADD= @GTK_LIBS@
 
 resources.c: hexviewer_app.gresource.xml \
 	$(shell glib-compile-resources --generate-dependencies --sourcedir=. hexviewer_app.gresource.xml)
