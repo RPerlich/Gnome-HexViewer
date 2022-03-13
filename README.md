@@ -17,12 +17,14 @@ HexViewer can open files and show / edit the content in a hexadecimal format.
   * Editing data (limited to overwrite data at the moment)
   * Preferences dialog to control some properties
 
-Building / Running
+Building / Running (AutoTools)
 -------------------------------
 HexViewer is using the normal "make" method with AutoTools.
 To build HexViewer run the following commands:
+  * autoreconf --install
   * ./configure --prefix=/usr
   * make
+  * sudo make install
 
 There can be an issue when running this application out of the build directory
 without installing it. To handle this situation, you have to set the 
@@ -35,6 +37,15 @@ compiled schema. Example for "launch.json" in VSC:
     "value": "data" // set this the the folder where the profile is stored
   }
 ],
+
+Building / Running (Meson - preferred method)
+-------------------------------
+HexViewer can also be build by Meson.
+To build HexViewer run the following commands:
+  * meson . build
+  * cd build
+  * meson compile
+  * meson install
 
 Contributing
 -------------------------------
