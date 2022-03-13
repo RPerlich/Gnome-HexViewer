@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=HexViewer
+Comment=Free hexadecimal file viewer
+GenericName=HexViewer
+Exec=/usr/bin/hexviewer %F
+Icon=hexviewer
+Type=Application
+StartupNotify=true
+Categories=Utility;HexEditor;Development;GNOME;GTK;
+MimeType=text/plain;
+Keywords=vscode;
