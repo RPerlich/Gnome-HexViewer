@@ -21,7 +21,7 @@ jobs:
             libgirepository1.0-dev
     - name: configure
       run: |
-        autoreconf --force
+        autoreconf --install
         ./configure --prefix=/usr
     - name: make
       run: make
