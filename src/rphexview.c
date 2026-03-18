@@ -1437,7 +1437,7 @@ static gboolean rp_hex_view_key_press_callback(GtkWidget *widget, GdkEventKey *e
 				ret = TRUE;
 				break;
 			case GDK_KEY_Page_Down:
-				rp_hex_view_set_cursor(widget, CLAMP ((glong)priv->iBytePos + priv->iVisibleRows * priv->iBytesPerLine, 0, clampFileSize));
+				rp_hex_view_set_cursor(widget, CLAMP ((glong)priv->iBytePos + (glong)priv->iVisibleRows * priv->iBytesPerLine, 0, clampFileSize));
 				ret = TRUE;
 				break;
 			case GDK_KEY_Tab:
